@@ -8,11 +8,9 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-# Get the paths from environment variables
 model_path = os.getenv('MODEL_PATH')
 face_cascade_path = os.getenv('FACE_CASCADE_PATH')
 
-# Load the model and the cascade classifier using the paths from environment variables
 model = load_model(model_path)
 face_cascade = cv2.CascadeClassifier(face_cascade_path)
 
