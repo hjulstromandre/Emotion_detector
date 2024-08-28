@@ -55,4 +55,8 @@ class EmotionDetector(VideoTransformerBase):
 
         return img
 
-webrtc_streamer(key="emotion-detector", video_transformer_factory=EmotionDetector)
+webrtc_streamer(
+    key="emotion-detector",
+    video_transformer_factory=EmotionDetector,
+    media_stream_constraints={"video": True, "audio": False}
+)
