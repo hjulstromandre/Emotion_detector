@@ -3,4 +3,4 @@ streamlit
 numpy
 tensorflow
 opencv-python
-dotenv
+python-dotenv
