@@ -2,6 +2,6 @@ opencv-python
 streamlit
 numpy
 tensorflow
-cv2
+opencv-python
 os
 dotenv
