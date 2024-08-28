@@ -3,3 +3,4 @@ streamlit
 numpy
 tensorflow
 python-dotenv
+gdown
