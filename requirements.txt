@@ -2,5 +2,4 @@ opencv-python
 streamlit
 numpy
 tensorflow
-opencv-python
 python-dotenv
