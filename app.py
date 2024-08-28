@@ -4,12 +4,21 @@ import numpy as np
 from tensorflow.keras.models import load_model
 import os
 from dotenv import load_dotenv
-
+import gdown
 
 load_dotenv()
 
-model_path = os.getenv('MODEL_PATH')
-face_cascade_path = os.getenv('FACE_CASCADE_PATH')
+model_drive_id = os.getenv('MODEL_DRIVE_ID')
+cascade_drive_id = os.getenv('CASCADE_DRIVE_ID')
+
+model_path = os.getenv('MODEL_PATH', 'modelv9.keras')
+face_cascade_path = os.getenv('FACE_CASCADE_PATH', 'haarcascade_frontalface_default.xml')
+
+if not os.path.exists(model_path):
+    gdown.download(f'https://drive.google.com/uc?id={model_drive_id}', model_path, quiet=False)
+
+if not os.path.exists(face_cascade_path):
+    gdown.download(f'https://drive.google.com/uc?id={cascade_drive_id}', face_cascade_path, quiet=False)
 
 model = load_model(model_path)
 face_cascade = cv2.CascadeClassifier(face_cascade_path)
@@ -17,6 +26,7 @@ face_cascade = cv2.CascadeClassifier(face_cascade_path)
 emotion_labels = ['angry', 'disgust', 'fear', 'happy', 'neutral', 'sad', 'surprise']
 
 st.title("Real-Time Emotion Detector")
+
 def preprocess_face(face):
     gray = cv2.cvtColor(face, cv2.COLOR_BGR2GRAY)
     roi_gray = cv2.resize(gray, (48, 48), interpolation=cv2.INTER_AREA)
@@ -48,5 +58,6 @@ def main():
             cv2.putText(frame, text, (x, y-10), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2, cv2.LINE_AA)
         stframe.image(frame, channels="BGR")
     cap.release()
+
 if st.button('Start Webcam'):
     main()
