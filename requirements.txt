@@ -4,3 +4,4 @@ numpy
 tensorflow
 python-dotenv
 gdown
+streamlit_webrtc
