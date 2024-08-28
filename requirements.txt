@@ -1,0 +1,7 @@
+opencv-python
+streamlit
+numpy
+tensorflow
+cv2
+os
+dotenv
