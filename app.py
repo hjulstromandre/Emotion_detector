@@ -5,7 +5,7 @@ from tensorflow.keras.models import load_model
 import os
 from dotenv import load_dotenv
 import gdown
-import imutils
+from streamlit_webrtc import webrtc_streamer, VideoTransformerBase, WebRtcMode, ClientSettings
 import logging
 
 # Configure logging
@@ -57,34 +57,16 @@ def preprocess_face(face):
     roi = np.expand_dims(roi, axis=0)
     return roi
 
-# Main function for the Streamlit app
-def main():
-    stframe = st.empty()
-    cap = cv2.VideoCapture(0)  # Access the webcam
-
-    if not cap.isOpened():
-        logging.error("Failed to access webcam.")
-        return
-
-    logging.info("Webcam accessed successfully.")
-
-    while True:
-        ret, frame = cap.read()
-        if not ret:
-            logging.error("Failed to capture video.")
-            break
-        
-        logging.info("Frame captured successfully.")
-        
-        frame = imutils.resize(frame, width=800)
-        gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+# Video transformer class to handle frame-by-frame processing
+class EmotionDetector(VideoTransformerBase):
+    def recv(self, frame):
+        img = frame.to_ndarray(format="bgr24")
+        gray_frame = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
         faces = face_cascade.detectMultiScale(gray_frame, scaleFactor=1.1, minNeighbors=5, minSize=(30, 30))
 
-        logging.info(f"Faces detected: {len(faces)}")
-
         for (x, y, w, h) in faces:
-            cv2.rectangle(frame, (x, y), (x+w, y+h), (255, 0, 0), 2)
-            face = frame[y:y+h, x:x+w]
+            cv2.rectangle(img, (x, y), (x+w, y+h), (255, 0, 0), 2)
+            face = img[y:y+h, x:x+w]
             try:
                 preprocessed_face = preprocess_face(face)
                 prediction = model.predict(preprocessed_face)[0]
@@ -92,14 +74,31 @@ def main():
                 predicted_label = emotion_labels[predicted_class_index]
                 confidence_score = prediction[predicted_class_index]
                 text = f'{predicted_label} ({confidence_score*100:.2f}%)'
-                cv2.putText(frame, text, (x, y-10), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2, cv2.LINE_AA)
+                cv2.putText(img, text, (x, y-10), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2, cv2.LINE_AA)
                 logging.info(f"Emotion detected: {predicted_label}, Confidence: {confidence_score*100:.2f}%")
             except Exception as e:
                 logging.error(f"Error processing face: {e}")
 
-        stframe.image(frame, channels="BGR")
+        return img
 
-    cap.release()
+# Client settings for WebRTC
+client_settings = ClientSettings(
+    rtc_configuration={
+        "iceServers": [
+            {"urls": "stun:stun.l.google.com:19302"}
+        ]
+    },
+    media_stream_constraints={
+        "video": True,
+        "audio": False
+    }
+)
 
-if __name__ == "__main__":
-    main()
+# Streamlit WebRTC streamer setup
+webrtc_streamer(
+    key="emotion-detector",
+    mode=WebRtcMode.SENDRECV,
+    client_settings=client_settings,
+    video_processor_factory=EmotionDetector,
+    async_transform=True
+)
