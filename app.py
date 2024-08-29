@@ -1,3 +1,5 @@
+import asyncio
+import logging
 import streamlit as st
 import cv2
 import numpy as np
@@ -6,9 +8,7 @@ import os
 from dotenv import load_dotenv
 import gdown
 from streamlit_webrtc import webrtc_streamer, VideoTransformerBase, WebRtcMode
-import logging
-from threading import Thread
-import queue
+from threading import Thread, Event
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -16,12 +16,14 @@ logging.basicConfig(level=logging.INFO)
 # Load environment variables and models
 load_dotenv()
 
+# Load model and cascade paths from environment variables
 model_drive_id = os.getenv('MODEL_DRIVE_ID')
 cascade_drive_id = os.getenv('CASCADE_DRIVE_ID')
 
 model_path = os.getenv('MODEL_PATH', 'modelv9.keras')
 face_cascade_path = os.getenv('FACE_CASCADE_PATH', 'haarcascade_frontalface_default.xml')
 
+# Download model files if they don't exist
 if not os.path.exists(model_path):
     gdown.download(f'https://drive.google.com/uc?id={model_drive_id}', model_path, quiet=False)
     logging.info("Model downloaded successfully.")
@@ -48,18 +50,10 @@ emotion_labels = ['angry', 'disgust', 'fear', 'happy', 'neutral', 'sad', 'surpri
 
 st.title("Real-Time Emotion Detector")
 
-def preprocess_face(face):
-    gray = cv2.cvtColor(face, cv2.COLOR_BGR2GRAY)
-    roi_gray = cv2.resize(gray, (48, 48), interpolation=cv2.INTER_AREA)
-    roi = roi_gray.astype('float32') / 255.0
-    roi = np.expand_dims(roi, axis=-1)
-    roi = np.expand_dims(roi, axis=0)
-    return roi
-
 class EmotionDetector(VideoTransformerBase):
     def __init__(self):
         self.frame_count = 0  # Add a frame counter
-        self.result_queue = queue.Queue()  # Thread-safe queue for results
+        self.stop_event = Event()
 
     def recv(self, frame):
         self.frame_count += 1
@@ -70,20 +64,20 @@ class EmotionDetector(VideoTransformerBase):
         thread = Thread(target=self.process_frame, args=(img,))
         thread.start()
 
-        # Retrieve result if available
-        if not self.result_queue.empty():
-            img = self.result_queue.get()
+        # Stop event for threading
+        if self.stop_event.is_set():
+            thread.join()
 
-        return img
+        return frame
 
     def process_frame(self, img):
-        gray_frame = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-        faces = face_cascade.detectMultiScale(gray_frame, scaleFactor=1.1, minNeighbors=5, minSize=(30, 30))
+        try:
+            gray_frame = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+            faces = face_cascade.detectMultiScale(gray_frame, scaleFactor=1.1, minNeighbors=5, minSize=(30, 30))
 
-        for (x, y, w, h) in faces:
-            cv2.rectangle(img, (x, y), (x+w, y+h), (255, 0, 0), 2)
-            face = img[y:y+h, x:x+w]
-            try:
+            for (x, y, w, h) in faces:
+                cv2.rectangle(img, (x, y), (x+w, y+h), (255, 0, 0), 2)
+                face = img[y:y+h, x:x+w]
                 preprocessed_face = preprocess_face(face)
                 prediction = model.predict(preprocessed_face)[0]
                 predicted_class_index = np.argmax(prediction)
@@ -92,10 +86,16 @@ class EmotionDetector(VideoTransformerBase):
                 text = f'{predicted_label} ({confidence_score*100:.2f}%)'
                 cv2.putText(img, text, (x, y-10), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2, cv2.LINE_AA)
                 logging.info(f"Emotion detected: {predicted_label}, Confidence: {confidence_score*100:.2f}%")
-            except Exception as e:
-                logging.error(f"Error processing face: {e}")
+        except Exception as e:
+            logging.error(f"Error processing frame: {e}")
 
-        self.result_queue.put(img)  # Add result to queue
+def preprocess_face(face):
+    gray = cv2.cvtColor(face, cv2.COLOR_BGR2GRAY)
+    roi_gray = cv2.resize(gray, (48, 48), interpolation=cv2.INTER_AREA)
+    roi = roi_gray.astype('float32') / 255.0
+    roi = np.expand_dims(roi, axis=-1)
+    roi = np.expand_dims(roi, axis=0)
+    return roi
 
 rtc_configuration = {
     "iceServers": [
@@ -116,3 +116,12 @@ webrtc_streamer(
     video_processor_factory=EmotionDetector,
     async_processing=True
 )
+
+async def monitor_tasks():
+    try:
+        while True:
+            await asyncio.sleep(5)
+    except asyncio.CancelledError:
+        pass
+
+asyncio.run(monitor_tasks())
