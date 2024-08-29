@@ -7,6 +7,7 @@ from dotenv import load_dotenv
 import gdown
 from streamlit_webrtc import webrtc_streamer, VideoTransformerBase, WebRtcMode
 import logging
+import time
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -79,6 +80,7 @@ class EmotionDetector(VideoTransformerBase):
             except Exception as e:
                 logging.error(f"Error processing face: {e}")
 
+        time.sleep(0.1)  # Add a small delay to reduce processing load
         return img
 
 # WebRTC configuration
@@ -88,9 +90,9 @@ rtc_configuration = {
     ]
 }
 
-# Media stream constraints
+# Media stream constraints with reduced frame rate and resolution
 media_stream_constraints = {
-    "video": True,
+    "video": {"frameRate": {"ideal": 5, "max": 10}, "width": {"ideal": 640}, "height": {"ideal": 480}},
     "audio": False
 }
 
