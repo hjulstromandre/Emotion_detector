@@ -40,6 +40,14 @@ emotion_labels = ['angry', 'disgust', 'fear', 'happy', 'neutral', 'sad', 'surpri
 
 st.title("Real-Time Emotion Detector")
 
+def preprocess_face(face):
+    gray = cv2.cvtColor(face, cv2.COLOR_BGR2GRAY)
+    roi_gray = cv2.resize(gray, (48, 48), interpolation=cv2.INTER_AREA)
+    roi = roi_gray.astype('float32') / 255.0
+    roi = np.expand_dims(roi, axis=-1)
+    roi = np.expand_dims(roi, axis=0)
+    return roi
+
 class EmotionDetector(VideoTransformerBase):
     def __init__(self):
         self.frame_count = 0
