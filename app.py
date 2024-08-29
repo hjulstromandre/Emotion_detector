@@ -11,20 +11,16 @@ import logging
 from threading import Thread, Event
 import av
 
-# Configure logging
 logging.basicConfig(level=logging.INFO)
 
-# Load environment variables and models
 load_dotenv()
 
-# Load model and cascade paths from environment variables
 model_drive_id = os.getenv('MODEL_DRIVE_ID')
 cascade_drive_id = os.getenv('CASCADE_DRIVE_ID')
 
 model_path = os.getenv('MODEL_PATH', 'modelv9.keras')
 face_cascade_path = os.getenv('FACE_CASCADE_PATH', 'haarcascade_frontalface_default.xml')
 
-# Download model files if they don't exist
 if not os.path.exists(model_path):
     gdown.download(f'https://drive.google.com/uc?id={model_drive_id}', model_path, quiet=False)
     logging.info("Model downloaded successfully.")
@@ -33,7 +29,6 @@ if not os.path.exists(face_cascade_path):
     gdown.download(f'https://drive.google.com/uc?id={cascade_drive_id}', face_cascade_path, quiet=False)
     logging.info("Cascade Classifier downloaded successfully.")
 
-# Load the TensorFlow model and Cascade Classifier
 try:
     model = load_model(model_path)
     logging.info("Model loaded successfully.")
@@ -46,7 +41,6 @@ try:
 except Exception as e:
     logging.error(f"Error loading Cascade Classifier: {e}")
 
-# Define emotion labels
 emotion_labels = ['angry', 'disgust', 'fear', 'happy', 'neutral', 'sad', 'surprise']
 
 st.title("Real-Time Emotion Detector")
@@ -106,7 +100,7 @@ class EmotionDetector(VideoTransformerBase):
 
                     logging.info(f"Emotion detected: {predicted_label}, Confidence: {confidence_score*100:.2f}%")
             else:
-                self.last_face = None  # Clear last face if no face is detected
+                self.last_face = None 
 
             self.result_queue = img
 
