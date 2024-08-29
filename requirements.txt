@@ -7,3 +7,4 @@ gdown
 streamlit-webrtc
 imutils
 av
+logging
