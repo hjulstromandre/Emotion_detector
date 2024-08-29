@@ -8,3 +8,4 @@ streamlit-webrtc
 imutils
 av
 logging
+threading
