@@ -8,6 +8,7 @@ import gdown
 from streamlit_webrtc import webrtc_streamer, VideoTransformerBase, WebRtcMode
 import logging
 from threading import Thread
+import queue
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -42,6 +43,7 @@ try:
 except Exception as e:
     logging.error(f"Error loading Cascade Classifier: {e}")
 
+# Define emotion labels
 emotion_labels = ['angry', 'disgust', 'fear', 'happy', 'neutral', 'sad', 'surprise']
 
 st.title("Real-Time Emotion Detector")
@@ -57,6 +59,7 @@ def preprocess_face(face):
 class EmotionDetector(VideoTransformerBase):
     def __init__(self):
         self.frame_count = 0  # Add a frame counter
+        self.result_queue = queue.Queue()  # Thread-safe queue for results
 
     def recv(self, frame):
         self.frame_count += 1
@@ -64,6 +67,16 @@ class EmotionDetector(VideoTransformerBase):
             return frame
 
         img = frame.to_ndarray(format="bgr24")
+        thread = Thread(target=self.process_frame, args=(img,))
+        thread.start()
+
+        # Retrieve result if available
+        if not self.result_queue.empty():
+            img = self.result_queue.get()
+
+        return img
+
+    def process_frame(self, img):
         gray_frame = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
         faces = face_cascade.detectMultiScale(gray_frame, scaleFactor=1.1, minNeighbors=5, minSize=(30, 30))
 
@@ -82,7 +95,7 @@ class EmotionDetector(VideoTransformerBase):
             except Exception as e:
                 logging.error(f"Error processing face: {e}")
 
-        return img
+        self.result_queue.put(img)  # Add result to queue
 
 rtc_configuration = {
     "iceServers": [
