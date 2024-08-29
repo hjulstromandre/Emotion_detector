@@ -5,7 +5,7 @@ from tensorflow.keras.models import load_model
 import os
 from dotenv import load_dotenv
 import gdown
-from streamlit_webrtc import webrtc_streamer, VideoTransformerBase, WebRtcMode, ClientSettings
+from streamlit_webrtc import webrtc_streamer, VideoTransformerBase, WebRtcMode
 import logging
 
 # Configure logging
@@ -81,24 +81,25 @@ class EmotionDetector(VideoTransformerBase):
 
         return img
 
-# Client settings for WebRTC
-client_settings = ClientSettings(
-    rtc_configuration={
-        "iceServers": [
-            {"urls": "stun:stun.l.google.com:19302"}
-        ]
-    },
-    media_stream_constraints={
-        "video": True,
-        "audio": False
-    }
-)
+# WebRTC configuration
+rtc_configuration = {
+    "iceServers": [
+        {"urls": "stun:stun.l.google.com:19302"}
+    ]
+}
+
+# Media stream constraints
+media_stream_constraints = {
+    "video": True,
+    "audio": False
+}
 
 # Streamlit WebRTC streamer setup
 webrtc_streamer(
     key="emotion-detector",
     mode=WebRtcMode.SENDRECV,
-    client_settings=client_settings,
+    rtc_configuration=rtc_configuration,
+    media_stream_constraints=media_stream_constraints,
     video_processor_factory=EmotionDetector,
-    async_transform=True
+    async_processing=True  # Use async_processing instead of async_transform
 )
