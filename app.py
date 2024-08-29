@@ -5,7 +5,7 @@ from tensorflow.keras.models import load_model
 import os
 from dotenv import load_dotenv
 import gdown
-from streamlit_webrtc import webrtc_streamer, VideoTransformerBase
+from streamlit_webrtc import webrtc_streamer, VideoTransformerBase, WebRtcMode, ClientSettings
 
 load_dotenv()
 
@@ -37,8 +37,12 @@ def preprocess_face(face):
     return roi
 
 class EmotionDetector(VideoTransformerBase):
+    def __init__(self, resolution=(640, 480)):
+        self.resolution = resolution
+
     def transform(self, frame):
         img = frame.to_ndarray(format="bgr24")
+        img = cv2.resize(img, self.resolution)
         gray_frame = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
         faces = face_cascade.detectMultiScale(gray_frame, scaleFactor=1.1, minNeighbors=5, minSize=(30, 30))
 
@@ -55,14 +59,18 @@ class EmotionDetector(VideoTransformerBase):
 
         return img
 
-webrtc_streamer(
-    key="emotion-detector",
-    video_transformer_factory=EmotionDetector,
-    media_stream_constraints={"video": True, "audio": False},
+client_settings = ClientSettings(
     rtc_configuration={
         "iceServers": [
             {"urls": "stun:stun.l.google.com:19302"},
             {"urls": "turn:YOUR_TURN_SERVER", "username": "user", "credential": "pass"}
         ]
-    }
+    },
+    media_stream_constraints={
+        "video": {"frameRate": {"ideal": 10, "max": 15}, "width": {"ideal": 640}, "height": {"ideal": 480}},
+        "audio": False
+    },
+    video_processor_factory=EmotionDetector,
 )
+
+webrtc_streamer(key="emotion-detector", mode=WebRtcMode.SENDRECV, client_settings=client_settings)
