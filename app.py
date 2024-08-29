@@ -1,4 +1,4 @@
-import asyncio 
+import asyncio
 import streamlit as st
 import cv2
 import numpy as np
@@ -53,23 +53,29 @@ st.title("Real-Time Emotion Detector")
 
 class EmotionDetector(VideoTransformerBase):
     def __init__(self):
-        self.frame_count = 0  # Add a frame counter
-        self.result_queue = None  # Initialize result_queue
+        self.last_face = None
+        self.last_text = None
+        self.last_coords = None
+        self.frame_count = 0
+        self.result_queue = None
         self.stop_event = Event()
 
     def recv(self, frame):
         self.frame_count += 1
         img = frame.to_ndarray(format="bgr24")
 
-        if self.frame_count % 5 != 0:  # Process every 5th frame
+        if self.frame_count % 3 != 0:  # Process every 3rd frame (adjusted to increase capture rate)
+            # Draw the last detected face for lingering effect
+            if self.last_face is not None:
+                cv2.rectangle(img, self.last_coords[0], self.last_coords[1], (255, 0, 0), 2)
+                cv2.putText(img, self.last_text, (self.last_coords[0][0], self.last_coords[0][1] - 10), 
+                            cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2, cv2.LINE_AA)
             return av.VideoFrame.from_ndarray(img, format="bgr24")
 
-        # Process the frame in a separate thread
         thread = Thread(target=self.process_frame, args=(img,))
         thread.start()
-        thread.join()  # Wait for the thread to finish processing before returning the frame
+        thread.join() 
 
-        # Retrieve result if available
         if self.result_queue is not None:
             img = self.result_queue
 
@@ -80,19 +86,29 @@ class EmotionDetector(VideoTransformerBase):
             gray_frame = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
             faces = face_cascade.detectMultiScale(gray_frame, scaleFactor=1.1, minNeighbors=5, minSize=(30, 30))
 
-            for (x, y, w, h) in faces:
-                cv2.rectangle(img, (x, y), (x+w, y+h), (255, 0, 0), 2)
-                face = img[y:y+h, x:x+w]
-                preprocessed_face = preprocess_face(face)
-                prediction = model.predict(preprocessed_face)[0]
-                predicted_class_index = np.argmax(prediction)
-                predicted_label = emotion_labels[predicted_class_index]
-                confidence_score = prediction[predicted_class_index]
-                text = f'{predicted_label} ({confidence_score*100:.2f}%)'
-                cv2.putText(img, text, (x, y-10), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2, cv2.LINE_AA)
-                logging.info(f"Emotion detected: {predicted_label}, Confidence: {confidence_score*100:.2f}%")
+            if len(faces) > 0:
+                for (x, y, w, h) in faces:
+                    face_coords = ((x, y), (x+w, y+h))
+                    face = img[y:y+h, x:x+w]
+                    preprocessed_face = preprocess_face(face)
+                    prediction = model.predict(preprocessed_face)[0]
+                    predicted_class_index = np.argmax(prediction)
+                    predicted_label = emotion_labels[predicted_class_index]
+                    confidence_score = prediction[predicted_class_index]
+                    text = f'{predicted_label} ({confidence_score*100:.2f}%)'
 
-            self.result_queue = img  # Set result to queue
+                    cv2.rectangle(img, (x, y), (x+w, y+h), (255, 0, 0), 2)
+                    cv2.putText(img, text, (x, y-10), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2, cv2.LINE_AA)
+
+                    self.last_face = face
+                    self.last_text = text
+                    self.last_coords = face_coords
+
+                    logging.info(f"Emotion detected: {predicted_label}, Confidence: {confidence_score*100:.2f}%")
+            else:
+                self.last_face = None  # Clear last face if no face is detected
+
+            self.result_queue = img
 
         except Exception as e:
             logging.error(f"Error processing frame: {e}")
@@ -112,7 +128,7 @@ rtc_configuration = {
 }
 
 media_stream_constraints = {
-    "video": {"frameRate": {"ideal": 5, "max": 10}, "width": {"ideal": 640}, "height": {"ideal": 480}},
+    "video": {"frameRate": {"ideal": 10, "max": 15}, "width": {"ideal": 640}, "height": {"ideal": 480}},
     "audio": False
 }
 
