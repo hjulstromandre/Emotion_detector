@@ -1,4 +1,4 @@
-import asyncio
+import asyncio 
 import streamlit as st
 import cv2
 import numpy as np
@@ -54,6 +54,7 @@ st.title("Real-Time Emotion Detector")
 class EmotionDetector(VideoTransformerBase):
     def __init__(self):
         self.frame_count = 0  # Add a frame counter
+        self.result_queue = None  # Initialize result_queue
         self.stop_event = Event()
 
     def recv(self, frame):
@@ -66,9 +67,10 @@ class EmotionDetector(VideoTransformerBase):
         # Process the frame in a separate thread
         thread = Thread(target=self.process_frame, args=(img,))
         thread.start()
+        thread.join()  # Wait for the thread to finish processing before returning the frame
 
         # Retrieve result if available
-        if self.result_queue:
+        if self.result_queue is not None:
             img = self.result_queue
 
         return av.VideoFrame.from_ndarray(img, format="bgr24")
