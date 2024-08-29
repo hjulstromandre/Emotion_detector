@@ -62,8 +62,7 @@ class EmotionDetector(VideoTransformerBase):
 client_settings = ClientSettings(
     rtc_configuration={
         "iceServers": [
-            {"urls": "stun:stun.l.google.com:19302"},
-            {"urls": "turn:YOUR_TURN_SERVER", "username": "user", "credential": "pass"}
+            {"urls": "stun:stun.l.google.com:19302"}
         ]
     },
     media_stream_constraints={
@@ -72,5 +71,6 @@ client_settings = ClientSettings(
     },
     video_processor_factory=EmotionDetector,
 )
+
 
 webrtc_streamer(key="emotion-detector", mode=WebRtcMode.SENDRECV, client_settings=client_settings)
