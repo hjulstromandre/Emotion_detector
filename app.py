@@ -66,11 +66,11 @@ client_settings = ClientSettings(
         ]
     },
     media_stream_constraints={
-        "video": {"frameRate": {"ideal": 10, "max": 15}, "width": {"ideal": 640}, "height": {"ideal": 480}},
+        "video": True,
         "audio": False
-    },
-    video_processor_factory=EmotionDetector,
+    }
 )
+
 
 
 webrtc_streamer(key="emotion-detector", mode=WebRtcMode.SENDRECV, client_settings=client_settings)
