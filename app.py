@@ -77,4 +77,10 @@ client_settings = ClientSettings(
     }
 )
 
-webrtc_streamer(key="emotion-detector", mode=WebRtcMode.SENDRECV, client_settings=client_settings)
+webrtc_streamer(
+    key="emotion-detector",
+    mode=WebRtcMode.SENDRECV,
+    client_settings=client_settings,
+    async_transform=True
+)
+
