@@ -1,5 +1,3 @@
-import asyncio
-import logging
 import streamlit as st
 import cv2
 import numpy as np
@@ -8,7 +6,9 @@ import os
 from dotenv import load_dotenv
 import gdown
 from streamlit_webrtc import webrtc_streamer, VideoTransformerBase, WebRtcMode
+import logging
 from threading import Thread, Event
+import av
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -57,18 +57,20 @@ class EmotionDetector(VideoTransformerBase):
 
     def recv(self, frame):
         self.frame_count += 1
-        if self.frame_count % 5 != 0:  # Process every 5th frame
-            return frame
-
         img = frame.to_ndarray(format="bgr24")
+
+        if self.frame_count % 5 != 0:  # Process every 5th frame
+            return av.VideoFrame.from_ndarray(img, format="bgr24")
+
+        # Process the frame in a separate thread
         thread = Thread(target=self.process_frame, args=(img,))
         thread.start()
 
-        # Stop event for threading
-        if self.stop_event.is_set():
-            thread.join()
+        # Retrieve result if available
+        if self.result_queue:
+            img = self.result_queue
 
-        return frame
+        return av.VideoFrame.from_ndarray(img, format="bgr24")
 
     def process_frame(self, img):
         try:
@@ -86,6 +88,9 @@ class EmotionDetector(VideoTransformerBase):
                 text = f'{predicted_label} ({confidence_score*100:.2f}%)'
                 cv2.putText(img, text, (x, y-10), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2, cv2.LINE_AA)
                 logging.info(f"Emotion detected: {predicted_label}, Confidence: {confidence_score*100:.2f}%")
+
+            self.result_queue = img  # Set result to queue
+
         except Exception as e:
             logging.error(f"Error processing frame: {e}")
 
