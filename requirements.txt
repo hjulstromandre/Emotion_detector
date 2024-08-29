@@ -4,4 +4,4 @@ numpy
 tensorflow
 python-dotenv
 gdown
-streamlit_webrtc
+streamlit-webrtc==0.38.0
